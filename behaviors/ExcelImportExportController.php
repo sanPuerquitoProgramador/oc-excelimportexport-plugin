@@ -9,6 +9,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use System\Models\File;
 use ApplicationException;
 use League\Csv\Reader as CsvReader;
+use Log;
 
 class ExcelImportExportController extends ImportExportController
 {
@@ -38,7 +39,6 @@ class ExcelImportExportController extends ImportExportController
         }
 
         $tempCsvPath = $path . '.csv';
-
         $inputFileType = IOFactory::identify($path);
 
         try {
@@ -48,7 +48,27 @@ class ExcelImportExportController extends ImportExportController
         }
 
         $spreadsheet = $reader->load($path);
-        $writer = new Csv($spreadsheet);
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Crear una nueva hoja de cálculo para almacenar solo las columnas seleccionadas
+        $newSpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $newSheet = $newSpreadsheet->getActiveSheet();
+
+        // Definir las columnas a mantener
+        $columnsToKeep = ['A', 'B', 'C', 'D', 'E', 'I', 'J', 'L', 'M', 'N', 'P', 'Q'];
+        $currentColumn = 1;
+
+        // Copiar los valores de las columnas seleccionadas a la nueva hoja de cálculo
+        foreach ($columnsToKeep as $column) {
+            $colIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($column);
+            foreach ($sheet->getRowIterator() as $row) {
+                $cell = $sheet->getCellByColumnAndRow($colIndex, $row->getRowIndex());
+                $newSheet->setCellValueByColumnAndRow($currentColumn, $row->getRowIndex(), $cell->getValue());
+            }
+            $currentColumn++;
+        }
+
+        $writer = new Csv($newSpreadsheet);
         $writer->setSheetIndex(0);
         $writer->save($tempCsvPath);
 
