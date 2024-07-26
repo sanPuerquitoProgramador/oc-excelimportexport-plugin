@@ -8,6 +8,7 @@ use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use System\Models\File;
 use ApplicationException;
+use League\Csv\Reader as CsvReader;
 
 class ExcelImportExportController extends ImportExportController
 {
@@ -18,13 +19,12 @@ class ExcelImportExportController extends ImportExportController
         $this->assetPath = '/modules/backend/behaviors/importexportcontroller/assets';
     }
 
-    protected function createCsvReader($path)
+    protected function createCsvReader(string $path): CsvReader
     {
         $path = $this->convertToCsv($path);
 
         return parent::createCsvReader($path);
     }
-
 
     /**
      * @throws ApplicationException
