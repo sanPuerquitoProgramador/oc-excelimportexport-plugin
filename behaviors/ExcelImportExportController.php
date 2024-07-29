@@ -4,12 +4,10 @@ use Backend\Behaviors\ImportExportController;
 use October\Rain\Database\Models\DeferredBinding;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Reader\Exception;
-use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use System\Models\File;
 use ApplicationException;
 use League\Csv\Reader as CsvReader;
-use Log;
 
 class ExcelImportExportController extends ImportExportController
 {
@@ -27,9 +25,6 @@ class ExcelImportExportController extends ImportExportController
         return parent::createCsvReader($path);
     }
 
-    /**
-     * @throws ApplicationException
-     */
     private function convertToCsv(string $path)
     {
         $ext = pathinfo($path, PATHINFO_EXTENSION);
@@ -54,7 +49,7 @@ class ExcelImportExportController extends ImportExportController
         $newSpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $newSheet = $newSpreadsheet->getActiveSheet();
 
-        // Definir las columnas a mantener
+        // Definir las columnas a mantener. Util cuando se tienen celdas basura
         $columnsToKeep = ['A', 'B', 'C', 'D', 'E', 'I', 'J', 'L', 'M', 'N', 'P', 'Q'];
         $currentColumn = 1;
 
@@ -63,7 +58,15 @@ class ExcelImportExportController extends ImportExportController
             $colIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($column);
             foreach ($sheet->getRowIterator() as $row) {
                 $cell = $sheet->getCellByColumnAndRow($colIndex, $row->getRowIndex());
-                $newSheet->setCellValueByColumnAndRow($currentColumn, $row->getRowIndex(), $cell->getValue());
+                $value = $cell->getValue();
+
+                // Verificar si la celda es una fecha utilizando el formato de celda
+                $cellFormat = $sheet->getStyle($cell->getCoordinate())->getNumberFormat()->getFormatCode();
+                if (\PhpOffice\PhpSpreadsheet\Shared\Date::isDateTimeFormatCode($cellFormat)) {
+                    $value = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value)->format('d/m/Y');
+                }
+
+                $newSheet->setCellValueByColumnAndRow($currentColumn, $row->getRowIndex(), $value);
             }
             $currentColumn++;
         }
@@ -80,6 +83,7 @@ class ExcelImportExportController extends ImportExportController
 
         return $path . '.csv';
     }
+
 
     /**
      * @return File
