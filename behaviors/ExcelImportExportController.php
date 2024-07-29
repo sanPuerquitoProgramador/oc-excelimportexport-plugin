@@ -60,10 +60,13 @@ class ExcelImportExportController extends ImportExportController
                 $cell = $sheet->getCellByColumnAndRow($colIndex, $row->getRowIndex());
                 $value = $cell->getValue();
 
-                // Verificar si la celda es una fecha utilizando el formato de celda
-                $cellFormat = $sheet->getStyle($cell->getCoordinate())->getNumberFormat()->getFormatCode();
-                if (\PhpOffice\PhpSpreadsheet\Shared\Date::isDateTimeFormatCode($cellFormat)) {
-                    $value = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value)->format('d/m/Y');
+                //validamos que la celda no esté vacia...
+                if (!is_null($value) && $value !== '') {
+                    // Verificar si la celda es una fecha utilizando el formato de celda
+                    $cellFormat = $sheet->getStyle($cell->getCoordinate())->getNumberFormat()->getFormatCode();
+                    if (\PhpOffice\PhpSpreadsheet\Shared\Date::isDateTimeFormatCode($cellFormat)) {
+                        $value = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value)->format('d/m/Y');
+                    }
                 }
 
                 $newSheet->setCellValueByColumnAndRow($currentColumn, $row->getRowIndex(), $value);
