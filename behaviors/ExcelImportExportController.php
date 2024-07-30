@@ -1,16 +1,21 @@
 <?php namespace WRvE\ExcelImportExport\Behaviors;
 
+use ApplicationException;
 use Backend\Behaviors\ImportExportController;
+use League\Csv\Reader as CsvReader;
 use October\Rain\Database\Models\DeferredBinding;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Reader\Exception;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use System\Models\File;
-use ApplicationException;
-use League\Csv\Reader as CsvReader;
 
 class ExcelImportExportController extends ImportExportController
 {
+    protected $columnsToKeep = [];
+
     public function __construct($controller)
     {
         parent::__construct($controller);
@@ -18,13 +23,20 @@ class ExcelImportExportController extends ImportExportController
         $this->assetPath = '/modules/backend/behaviors/importexportcontroller/assets';
     }
 
+    public function setColumnsToKeep(array $columns)
+    {
+        $this->columnsToKeep = $columns;
+    }
+
     protected function createCsvReader(string $path): CsvReader
     {
         $path = $this->convertToCsv($path);
-
         return parent::createCsvReader($path);
     }
 
+    /**
+     * @throws ApplicationException
+     */
     private function convertToCsv(string $path)
     {
         $ext = pathinfo($path, PATHINFO_EXTENSION);
@@ -34,6 +46,7 @@ class ExcelImportExportController extends ImportExportController
         }
 
         $tempCsvPath = $path . '.csv';
+
         $inputFileType = IOFactory::identify($path);
 
         try {
@@ -45,28 +58,31 @@ class ExcelImportExportController extends ImportExportController
         $spreadsheet = $reader->load($path);
         $sheet = $spreadsheet->getActiveSheet();
 
-        // Crear una nueva hoja de cálculo para almacenar solo las columnas seleccionadas
-        $newSpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-        $newSheet = $newSpreadsheet->getActiveSheet();
-
-        // Definir las columnas a mantener. Util cuando se tienen celdas basura
-        $columnsToKeep = ['A', 'B', 'C', 'D', 'E', 'I', 'J', 'L', 'M', 'N', 'P', 'Q'];
+        // Usar las columnas definidas en la propiedad $columnsToKeep
+        $columnsToKeep = $this->columnsToKeep;
         $currentColumn = 1;
+
+        // Crear una nueva hoja de cálculo para almacenar solo las columnas seleccionadas
+        $newSpreadsheet = new Spreadsheet();
+        $newSheet = $newSpreadsheet->getActiveSheet();
 
         // Copiar los valores de las columnas seleccionadas a la nueva hoja de cálculo
         foreach ($columnsToKeep as $column) {
-            $colIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($column);
+            $colIndex = Coordinate::columnIndexFromString($column);
             foreach ($sheet->getRowIterator() as $row) {
                 $cell = $sheet->getCellByColumnAndRow($colIndex, $row->getRowIndex());
                 $value = $cell->getValue();
 
-                //validamos que la celda no esté vacia...
+                // Verificar si la celda tiene un valor antes de formatear
                 if (!is_null($value) && $value !== '') {
                     // Verificar si la celda es una fecha utilizando el formato de celda
                     $cellFormat = $sheet->getStyle($cell->getCoordinate())->getNumberFormat()->getFormatCode();
-                    if (\PhpOffice\PhpSpreadsheet\Shared\Date::isDateTimeFormatCode($cellFormat)) {
-                        $value = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value)->format('d/m/Y');
+                    if (Date::isDateTimeFormatCode($cellFormat)) {
+                        $value = Date::excelToDateTimeObject($value)->format('d/m/Y');
                     }
+                } else {
+                    // Si la celda está vacía, establecer el valor a null
+                    $value = null;
                 }
 
                 $newSheet->setCellValueByColumnAndRow($currentColumn, $row->getRowIndex(), $value);
@@ -86,7 +102,6 @@ class ExcelImportExportController extends ImportExportController
 
         return $path . '.csv';
     }
-
 
     /**
      * @return File
