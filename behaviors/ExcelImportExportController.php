@@ -70,7 +70,9 @@ class ExcelImportExportController extends ImportExportController
         foreach ($columnsToKeep as $column) {
             $colIndex = Coordinate::columnIndexFromString($column);
             foreach ($sheet->getRowIterator() as $row) {
-                $cell = $sheet->getCellByColumnAndRow($colIndex, $row->getRowIndex());
+                $rowIndex = $row->getRowIndex();
+                $cellCoordinate = Coordinate::stringFromColumnIndex($colIndex) . $rowIndex;
+                $cell = $sheet->getCell($cellCoordinate); // Método no deprecado
                 $value = $cell->getValue();
 
                 // Verificar si la celda tiene un valor antes de formatear
@@ -85,10 +87,12 @@ class ExcelImportExportController extends ImportExportController
                     $value = null;
                 }
 
-                $newSheet->setCellValueByColumnAndRow($currentColumn, $row->getRowIndex(), $value);
+                $newCellCoordinate = Coordinate::stringFromColumnIndex($currentColumn) . $rowIndex;
+                $newSheet->getCell($newCellCoordinate)->setValue($value); // Método no deprecado
             }
             $currentColumn++;
         }
+
 
         $writer = new Csv($newSpreadsheet);
         $writer->setSheetIndex(0);
