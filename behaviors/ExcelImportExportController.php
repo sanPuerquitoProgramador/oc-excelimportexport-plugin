@@ -14,7 +14,7 @@ use System\Models\File;
 
 class ExcelImportExportController extends ImportExportController
 {
-    protected $columnsToKeep = [];
+    protected $columnsToKeep = "all";
 
     public function __construct($controller)
     {
@@ -23,7 +23,7 @@ class ExcelImportExportController extends ImportExportController
         $this->assetPath = '/modules/backend/behaviors/importexportcontroller/assets';
     }
 
-    public function setColumnsToKeep(array $columns)
+    public function setColumnsToKeep($columns)
     {
         $this->columnsToKeep = $columns;
     }
@@ -58,8 +58,19 @@ class ExcelImportExportController extends ImportExportController
         $spreadsheet = $reader->load($path);
         $sheet = $spreadsheet->getActiveSheet();
 
-        // Usar las columnas definidas en la propiedad $columnsToKeep
-        $columnsToKeep = $this->columnsToKeep;
+        // Determinar las columnas a mantener
+        if ($this->columnsToKeep === "all" || empty($this->columnsToKeep)) {
+            $columnsToKeep = [];
+            $firstRow = $sheet->getRowIterator()->current();
+            foreach ($firstRow->getCellIterator() as $cell) {
+                if (!is_null($cell->getValue()) && $cell->getValue() !== '') {
+                    $columnsToKeep[] = $cell->getColumn();
+                }
+            }
+        } else {
+            $columnsToKeep = $this->columnsToKeep;
+        }
+
         $currentColumn = 1;
 
         // Crear una nueva hoja de cálculo para almacenar solo las columnas seleccionadas
@@ -75,13 +86,13 @@ class ExcelImportExportController extends ImportExportController
                 $cell = $sheet->getCell($cellCoordinate); // Método no deprecado
                 $value = $cell->getValue();
 
-                // Verificar si la celda tiene un valor antes de formatear
+                // // Verificar si la celda tiene un valor antes de formatear
                 if (!is_null($value) && $value !== '') {
-                    // Verificar si la celda es una fecha utilizando el formato de celda
-                    $cellFormat = $sheet->getStyle($cell->getCoordinate())->getNumberFormat()->getFormatCode();
-                    if (Date::isDateTimeFormatCode($cellFormat)) {
-                        $value = Date::excelToDateTimeObject($value)->format('d/m/Y');
-                    }
+                //     // Verificar si la celda es una fecha utilizando el formato de celda
+                //     $cellFormat = $sheet->getStyle($cell->getCoordinate())->getNumberFormat()->getFormatCode();
+                //     if (Date::isDateTimeFormatCode($cellFormat)) {
+                //         $value = Date::excelToDateTimeObject($value)->format('d/m/Y');
+                    // }
                 } else {
                     // Si la celda está vacía, establecer el valor a null
                     $value = null;
