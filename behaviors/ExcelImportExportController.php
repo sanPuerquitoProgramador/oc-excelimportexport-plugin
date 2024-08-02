@@ -11,6 +11,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use System\Models\File;
+use Carbon\Carbon;
 
 class ExcelImportExportController extends ImportExportController
 {
@@ -71,11 +72,10 @@ class ExcelImportExportController extends ImportExportController
             $columnsToKeep = $this->columnsToKeep;
         }
 
-        $currentColumn = 1;
-
         // Crear una nueva hoja de cálculo para almacenar solo las columnas seleccionadas
         $newSpreadsheet = new Spreadsheet();
         $newSheet = $newSpreadsheet->getActiveSheet();
+        $currentColumn = 1;
 
         // Copiar los valores de las columnas seleccionadas a la nueva hoja de cálculo
         foreach ($columnsToKeep as $column) {
@@ -83,27 +83,25 @@ class ExcelImportExportController extends ImportExportController
             foreach ($sheet->getRowIterator() as $row) {
                 $rowIndex = $row->getRowIndex();
                 $cellCoordinate = Coordinate::stringFromColumnIndex($colIndex) . $rowIndex;
-                $cell = $sheet->getCell($cellCoordinate); // Método no deprecado
+                $cell = $sheet->getCell($cellCoordinate);
                 $value = $cell->getValue();
-
-                // // Verificar si la celda tiene un valor antes de formatear
                 if (!is_null($value) && $value !== '') {
-                //     // Verificar si la celda es una fecha utilizando el formato de celda
-                //     $cellFormat = $sheet->getStyle($cell->getCoordinate())->getNumberFormat()->getFormatCode();
-                //     if (Date::isDateTimeFormatCode($cellFormat)) {
-                //         $value = Date::excelToDateTimeObject($value)->format('d/m/Y');
-                    // }
+                    $cellFormat = $sheet->getStyle($cell->getCoordinate())->getNumberFormat()->getFormatCode();
+                    if (Date::isDateTimeFormatCode($cellFormat)) {
+                        if (is_numeric($value)) {
+                            $value = Date::excelToDateTimeObject($value)->format('Y-m-d H:i:s');
+                        } else {
+                            $value = Carbon::parse($value)->format('Y-m-d H:i:s');
+                        }
+                    }
                 } else {
-                    // Si la celda está vacía, establecer el valor a null
                     $value = null;
                 }
-
                 $newCellCoordinate = Coordinate::stringFromColumnIndex($currentColumn) . $rowIndex;
-                $newSheet->getCell($newCellCoordinate)->setValue($value); // Método no deprecado
+                $newSheet->getCell($newCellCoordinate)->setValue($value);
             }
             $currentColumn++;
         }
-
 
         $writer = new Csv($newSpreadsheet);
         $writer->setSheetIndex(0);
