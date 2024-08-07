@@ -107,6 +107,8 @@ class ExcelImportExportController extends ImportExportController
         $writer->setSheetIndex(0);
         $writer->save($tempCsvPath);
 
+        $this->removeEmptyRowsFromCsv($tempCsvPath);
+
         $fileModel = $this->getFileModel();
         $disk = $fileModel->getDisk();
         $disk->put($fileModel->getDiskPath() . '.csv', file_get_contents($tempCsvPath));
@@ -129,5 +131,19 @@ class ExcelImportExportController extends ImportExportController
             ->first();
 
         return $deferredBinding->slave_type::find($deferredBinding->slave_id);
+    }
+
+    private function removeEmptyRowsFromCsv(string $csvPath)
+    {
+        $lines = file($csvPath, FILE_IGNORE_NEW_LINES);
+        $outputLines = [];
+
+        foreach ($lines as $line) {
+            if (trim($line) !== '' && !preg_match('/^(\s*""\s*,)*\s*""\s*$/', $line)) {
+                $outputLines[] = $line;
+            }
+        }
+
+        file_put_contents($csvPath, implode(PHP_EOL, $outputLines));
     }
 }
